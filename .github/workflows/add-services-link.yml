@@ -1,0 +1,44 @@
+name: Integrate services catalog
+
+on:
+  push:
+    branches:
+      - agent/services-catalog
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/services-catalog
+      - name: Add catalog link to NEXORA PRIME
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          if 'href="services.html"' in text:
+              print('Services link already present.')
+          else:
+              old = '<a href="#lab" class="btn hoverable magnetic">Uruchom Advantage Lab</a>'
+              new = old + '<a href="services.html" class="btn hoverable magnetic">Pełny katalog usług <span>↗</span></a>'
+              if old not in text:
+                  raise SystemExit('Expected hero action anchor was not found; index.html left unchanged.')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+      - name: Commit integration
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "link services catalog from landing page"
+          git push
